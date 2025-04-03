@@ -1,14 +1,44 @@
+import os
+import time
+import socket
+import threading
 from flask import Flask, request, jsonify
 from meta_ai_api import MetaAI
-import time
-import threading
 
 app = Flask(__name__)
 
 # Almacena las instancias de MetaAI
 instances = {}
-# Almacena el tiempo de creación de cada instancia
 instance_timestamps = {}
+
+# Función para verificar la conexión a Internet
+def check_internet(host="8.8.8.8", port=53, timeout=3):
+    """Verifica si hay conexión a Internet."""
+    try:
+        socket.setdefaulttimeout(timeout)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+        return True
+    except socket.error:
+        return False
+
+# Función para monitorear la conexión y cerrar el script si se pierde el Internet
+def monitor_internet():
+    while True:
+        if not check_internet():
+            print("⛔ Internet perdido. Cerrando el servicio...")
+            os._exit(1)  # Cierra el script para que systemd lo reinicie
+        time.sleep(10)  # Revisa cada 10 segundos
+
+# Esperar a que haya Internet antes de iniciar Flask
+while not check_internet():
+    print("⛔ No hay internet. Esperando...")
+    time.sleep(10)
+
+print("✅ Internet disponible. Iniciando servicio...")
+
+# Iniciar el hilo de monitoreo de Internet
+monitor_thread = threading.Thread(target=monitor_internet, daemon=True)
+monitor_thread.start()
 
 # Función para eliminar instancias inactivas
 def cleanup_instances():
@@ -21,7 +51,7 @@ def cleanup_instances():
                 del instance_timestamps[instance_id]
                 print(f"Instancia {instance_id} eliminada por inactividad.")
 
-# Inicia el hilo de limpieza
+# Iniciar el hilo de limpieza
 cleanup_thread = threading.Thread(target=cleanup_instances, daemon=True)
 cleanup_thread.start()
 
@@ -29,7 +59,7 @@ cleanup_thread.start()
 def ask():
     data = request.json
     message = data.get('message')
-    instance_id = data.get('instance_id')
+    instance_id = data.get('instance_id', "")
 
     # Si se proporciona un ID de instancia, usa esa instancia, de lo contrario crea una nueva
     if instance_id in instances:
@@ -37,7 +67,7 @@ def ask():
         print(f"Usando la instancia existente: {instance_id}")
     else:
         ai = MetaAI()
-        if instance_id == "":
+        if not instance_id:
             instance_id = str(len(instances) + 1)  # Generar un nuevo ID de instancia
         instances[instance_id] = ai
         instance_timestamps[instance_id] = time.time()
