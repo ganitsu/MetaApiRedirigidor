@@ -29,12 +29,6 @@ def monitor_internet():
             os._exit(1)  # Cierra el script para que systemd lo reinicie
         time.sleep(10)  # Revisa cada 10 segundos
 
-# Esperar a que haya Internet antes de iniciar Flask
-while not check_internet():
-    print("⛔ No hay internet. Esperando...")
-    time.sleep(10)
-
-print("✅ Internet disponible. Iniciando servicio...")
 
 # Iniciar el hilo de monitoreo de Internet
 monitor_thread = threading.Thread(target=monitor_internet, daemon=True)
