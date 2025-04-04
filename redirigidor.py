@@ -26,7 +26,7 @@ def monitor_internet():
     while True:
         if not check_internet():
             print("⛔ Internet perdido. Cerrando el servicio...")
-            os._exit(1)  # Cierra el script para que systemd lo reinicie
+            sys._exit(1)  # Cierra el script para que systemd lo reinicie
         time.sleep(10)  # Revisa cada 10 segundos
 
 
